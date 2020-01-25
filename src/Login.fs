@@ -6,7 +6,7 @@ open Feliz
 type State =
     { Username: string
       Password: string
-      Login: Deferred<Api.LoginResult> }
+      LoginAttempt: Deferred<Api.LoginResult> }
 
 type Msg =
     | UsernameChanged of string
@@ -16,7 +16,7 @@ type Msg =
 let init() =
     { Username = ""
       Password = ""
-      Login = HasNotStartedYet }, Cmd.none
+      LoginAttempt = HasNotStartedYet }, Cmd.none
 
 let update (msg: Msg) (state: State) =
     match msg with
@@ -27,7 +27,7 @@ let update (msg: Msg) (state: State) =
         { state with Password = password }, Cmd.none
 
     | Login Started ->
-        let nextState = { state with Login = InProgress }
+        let nextState = { state with LoginAttempt = InProgress }
         let login = async {
             let! loginResult = Api.login state.Username state.Password
             return Login (Finished loginResult)
@@ -37,10 +37,10 @@ let update (msg: Msg) (state: State) =
         nextState, nextCmd
 
     | Login (Finished loginResult) ->
-        let nextState = { state with Login = Resolved loginResult }
+        let nextState = { state with LoginAttempt = Resolved loginResult }
         nextState, Cmd.none
 
-let renderLoginState (loginResult: Deferred<Api.LoginResult>)=
+let renderLoginOutcome (loginResult: Deferred<Api.LoginResult>)=
     match loginResult with
     | Resolved Api.LoginResult.UsernameOrPasswordIncorrect ->
         Html.paragraph [
@@ -172,7 +172,8 @@ let render (state: State) (dispatch: Msg -> unit) =
                         Html.button [
                             prop.className [
                                 "button is-info is-fullwidth"
-                                if state.Login = InProgress then "is-loading"
+                                if state.LoginAttempt = InProgress
+                                then "is-loading"
                             ]
 
                             prop.onClick (fun _ -> dispatch (Login Started))
@@ -181,7 +182,7 @@ let render (state: State) (dispatch: Msg -> unit) =
                     ]
                 ]
 
-                renderLoginState state.Login
+                renderLoginOutcome state.LoginAttempt
             ]
         ]
     ]
